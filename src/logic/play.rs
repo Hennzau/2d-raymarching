@@ -53,7 +53,7 @@ impl Play {
             pipeline: PipelineType::TestRasterizer,
 
             world: World::new(),
-            model: Mat4::from_translation(Vec3::new(140.0 * 2.5, 60.0 * 2.5, 0.0)),
+            model: Mat4::from_translation(Vec3::new(140.0, 60.0, 0.0)),
         };
     }
 

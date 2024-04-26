@@ -45,36 +45,43 @@ fn fs_main(
 
     let point_light = vec2<f32> (36.0 * 20.0, 10.0  * 20.0);
 
-    let x = 2.0 * in_frag_position.x / 1600.0 - 1.0;
-    let y = 1.0 - (2.0 * in_frag_position.y) / 900.0;
+    let x = 2.0 * in_frag_position.x / 1280.0 - 1.0;
+    let y = 1.0 - (2.0 * in_frag_position.y) / 720.0;
 
     let ray_nds = vec3<f32> (x, y, 1.0);
     let ray_clip = vec4<f32> (ray_nds.x, ray_nds.y, -1.0, 1.0);
 
     let ray_origin = (inverted_mvp * ray_clip).xy;
     let ray_direction = normalize (point_light - ray_origin);
-    let tile_origin = ray_origin / 20;
 
-    var t: f32 = 0.0;
-    var ray = vec2<f32> (0);
+    let tile_origin = vec2<u32> (u32(ray_origin.x / 20), u32(ray_origin.y / 20));
 
-    for (var i: i32 = 0; i < 100; i = i + 1) {
-        let tile = vec2<u32> (u32((tile_origin + ray).x), u32((tile_origin + ray).y));
+    var t = 0.0;
+
+    for (var i: i32 = 0; i < 500; i = i + 1) {
+        let ray_target = ray_origin + ray_direction * f32(i);
+        let tile = vec2<u32> (u32(ray_target.x / 20), u32(ray_target.y / 20));
 
         // process world with tile
 
-        if world[tile.x * 30 + tile.y] == 1 {
+        if length (ray_target - ray_origin) > length(point_light - ray_origin) {
+            t = 1.0;
             break;
         }
 
+        if world[tile.x * 30 + tile.y] == 1 {
+            if tile.x != tile_origin.x && tile.y != tile_origin.y {
+                t = 0.0;
+                break;
+
+            }
+        }
+
+        t = 1.0;
         // increase parameters if the ray continue
-
-        ray += ray_direction;
-
-        t += 1.0;
     }
 
-    result.out_frag_color = in_vertex_color * (1.0/t);
+    result.out_frag_color = in_vertex_color * t;
 
     return result;
 }
