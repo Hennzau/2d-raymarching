@@ -19,7 +19,7 @@ impl WorldRenderer {
             for y in 0..30 {
                 let offset = vertices.len();
 
-                if world.tiles[x][y] {
+                if world.tiles[x * 30 + y] == 1 {
                     vertices.push(ColorVertex { position: [x as f32 * 20.0, y as f32 * 20.0], color: [255, 0, 0, 255] });
                     vertices.push(ColorVertex { position: [x as f32 * 20.0 + 20.0, y as f32 * 20.0], color: [255, 0, 0, 255] });
                     vertices.push(ColorVertex { position: [x as f32 * 20.0, y as f32 * 20.0 + 20.0], color: [255, 0, 0, 255] });
@@ -30,7 +30,7 @@ impl WorldRenderer {
                     vertices.push(ColorVertex { position: [x as f32 * 20.0, y as f32 * 20.0 + 20.0], color: [255, 255, 0, 255] });
                     vertices.push(ColorVertex { position: [x as f32 * 20.0 + 20.0, y as f32 * 20.0 + 20.0], color: [255, 255, 0, 255] });
                 }
-                
+
                 indices.push(offset as u16 + 0);
                 indices.push(offset as u16 + 1);
                 indices.push(offset as u16 + 2);

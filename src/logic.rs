@@ -6,10 +6,11 @@ use winit::{
         MouseButton,
     },
 };
+use winit::dpi::PhysicalPosition;
 
 use crate::logic::{
     menu::Menu,
-    play::Play
+    play::Play,
 };
 
 pub mod camera;
@@ -56,6 +57,17 @@ impl Logic {
             }
             LogicState::Menu => {
                 self.menu.process_mouse_input(window, state, mouse_button);
+            }
+        }
+    }
+
+    pub fn process_mouse_position(&mut self, position: (u32, u32)) {
+        match self.state {
+            LogicState::Playing => {
+                self.play.process_mouse_position(position);
+            }
+            LogicState::Menu => {
+                //self.menu.process_mouse_motion(delta);
             }
         }
     }

@@ -51,7 +51,7 @@ async fn build_backend(window: &Window) -> (Instance, Surface, SurfaceConfigurat
         &wgpu::DeviceDescriptor {
             label: None,
             required_features: wgpu::Features::empty(),
-            required_limits: wgpu::Limits::downlevel_webgl2_defaults().using_resolution(adapter.limits()),
+            required_limits: wgpu::Limits::downlevel_defaults().using_resolution(adapter.limits()),
         },
         None,
     ).await.expect("Failed to create device");
@@ -140,6 +140,12 @@ fn main() {
                             button,
                             ..
                         } => logic.process_mouse_input(&window, state, button),
+                        WindowEvent::CursorMoved {
+                            position,
+                            ..
+                        } => {
+                            logic.process_mouse_position((position.x as u32, position.y as u32));
+                        }
                         _ => {}
                     }
                 }

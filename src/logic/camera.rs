@@ -31,16 +31,11 @@ impl Camera {
         };
     }
 
-    pub fn get_projection_matrix(&self, (width, height): (u32, u32)) -> Mat4 {
+    pub fn mvp (&self, (width, height): (u32, u32)) -> Mat4 {
         let projection = Mat4::orthographic_rh(0f32, width as f32, 0f32, height as f32, -1f32, 1f32);
-
-        return projection;
-    }
-
-    pub fn get_view_matrix(&self) -> Mat4 {
         let view = Mat4::from_translation(Vec3::new(-self.position.x, -self.position.y, 0f32));
 
-        return view;
+        return projection * view;
     }
 }
 

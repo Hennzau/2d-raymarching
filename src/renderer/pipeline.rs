@@ -1,17 +1,17 @@
 use std::{
     borrow::Cow,
-    mem
+    mem,
 };
 
 use bytemuck::{
     Pod,
-    Zeroable
+    Zeroable,
 };
 
 use wgpu::{
     BindGroupLayout,
     Face,
-    RenderPipeline
+    RenderPipeline,
 };
 
 use crate::WGPUBackend;
@@ -43,26 +43,6 @@ impl ColorPipeline {
                     },
                     count: None,
                 },
-                wgpu::BindGroupLayoutEntry { // Projection * View * Model Matrix
-                    binding: 1,
-                    visibility: wgpu::ShaderStages::VERTEX,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: wgpu::BufferSize::new(64),
-                    },
-                    count: None,
-                },
-                wgpu::BindGroupLayoutEntry { // Projection * View * Model Matrix
-                    binding: 2,
-                    visibility: wgpu::ShaderStages::VERTEX,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: wgpu::BufferSize::new(64),
-                    },
-                    count: None,
-                }
             ],
         });
 
@@ -125,12 +105,6 @@ impl ColorPipeline {
     }
 }
 
-#[repr(C)]
-#[derive(Clone, Copy, Pod, Zeroable)]
-pub struct SimpleVertex {
-    pub position: [f32; 2]
-}
-
 pub struct RayMarchingPipeline {
     pub layout: BindGroupLayout,
     pub pipeline: RenderPipeline,
@@ -141,7 +115,7 @@ impl RayMarchingPipeline {
         let bind_group_layout = wgpu_backend.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("BindGroupLayout for RayMarchingPipeline"),
             entries: &[
-                wgpu::BindGroupLayoutEntry { // Projection * View * Model Matrix
+                wgpu::BindGroupLayoutEntry { // MVP
                     binding: 0,
                     visibility: wgpu::ShaderStages::VERTEX,
                     ty: wgpu::BindingType::Buffer {
@@ -151,9 +125,9 @@ impl RayMarchingPipeline {
                     },
                     count: None,
                 },
-                wgpu::BindGroupLayoutEntry { // Projection * View * Model Matrix
+                wgpu::BindGroupLayoutEntry { // Inverted MVP
                     binding: 1,
-                    visibility: wgpu::ShaderStages::VERTEX,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Buffer {
                         ty: wgpu::BufferBindingType::Uniform,
                         has_dynamic_offset: false,
@@ -161,46 +135,16 @@ impl RayMarchingPipeline {
                     },
                     count: None,
                 },
-                wgpu::BindGroupLayoutEntry { // Projection * View * Model Matrix
+                wgpu::BindGroupLayoutEntry { // Tiles
                     binding: 2,
-                    visibility: wgpu::ShaderStages::VERTEX,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
+                        ty: wgpu::BufferBindingType::Storage { read_only: true },
                         has_dynamic_offset: false,
-                        min_binding_size: wgpu::BufferSize::new(64),
+                        min_binding_size: wgpu::BufferSize::new(1500 * 4),
                     },
                     count: None,
                 },
-                wgpu::BindGroupLayoutEntry {
-                    binding: 3,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: wgpu::BufferSize::new(64),
-                    },
-                    count: None,
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: 4,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: wgpu::BufferSize::new(64),
-                    },
-                    count: None,
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: 5,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: wgpu::BufferSize::new(8),
-                    },
-                    count: None,
-                }
             ],
         });
 
@@ -215,7 +159,7 @@ impl RayMarchingPipeline {
             push_constant_ranges: &[],
         });
 
-        let vertex_size = mem::size_of::<SimpleVertex>();
+        let vertex_size = mem::size_of::<ColorVertex>();
 
         let buffer_layout = wgpu::VertexBufferLayout {
             array_stride: vertex_size as wgpu::BufferAddress,
@@ -225,6 +169,11 @@ impl RayMarchingPipeline {
                     format: wgpu::VertexFormat::Float32x2,
                     offset: 0,
                     shader_location: 0,
+                },
+                wgpu::VertexAttribute {
+                    format: wgpu::VertexFormat::Unorm8x4,
+                    offset: 2 * 4,
+                    shader_location: 1,
                 }
             ],
         };

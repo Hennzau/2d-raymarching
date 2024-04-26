@@ -19,8 +19,6 @@ use crate::logic::{
 use crate::renderer::play::PlayRenderer;
 
 pub mod pipeline;
-pub mod rasterizer;
-pub mod ray_marcher;
 
 pub mod play;
 

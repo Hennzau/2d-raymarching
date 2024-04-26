@@ -1,4 +1,6 @@
 use glam::{Mat4, Vec3};
+use wgpu::BindingResource::BufferArray;
+use wgpu::{BufferBinding, BufferSize};
 use wgpu::util::DeviceExt;
 use crate::logic::play::Play;
 use crate::renderer::pipeline;
@@ -9,11 +11,11 @@ use crate::WGPUBackend;
 pub mod world;
 
 pub struct PlayRenderer {
-    pipeline: pipeline::ColorPipeline,
+    pipeline: pipeline::RayMarchingPipeline,
 
-    projection_buffer: wgpu::Buffer,
-    view_buffer: wgpu::Buffer,
-    model_buffer: wgpu::Buffer,
+    mvp_buffer: wgpu::Buffer,
+    inverted_mvp_buffer: wgpu::Buffer,
+    world_buffer: wgpu::Buffer,
 
     bind_group: wgpu::BindGroup,
 
@@ -22,30 +24,30 @@ pub struct PlayRenderer {
 
 impl PlayRenderer {
     pub fn new(wgpu_backend: &WGPUBackend, play: &Play) -> Self {
-        let pipeline = pipeline::ColorPipeline::new(wgpu_backend);
+        let pipeline = pipeline::RayMarchingPipeline::new(wgpu_backend);
 
-        let projection_data = play.camera.get_projection_matrix((wgpu_backend.config.width, wgpu_backend.config.height));
-        let projection_ref: &[f32; 16] = projection_data.as_ref();
-        let projection_buffer = wgpu_backend.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        let mvp_data = play.camera.mvp((wgpu_backend.config.width, wgpu_backend.config.height)) * play.model;
+        let mvp_ref: &[f32; 16] = mvp_data.as_ref();
+        let mvp_buffer = wgpu_backend.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: None,
-            contents: bytemuck::cast_slice(projection_ref),
+            contents: bytemuck::cast_slice(mvp_ref),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
 
-        let view_data = play.camera.get_view_matrix();
-        let view_ref: &[f32; 16] = view_data.as_ref();
-        let view_buffer = wgpu_backend.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        let inverted_mvp_data = (play.camera.mvp((wgpu_backend.config.width, wgpu_backend.config.height)) * play.model).inverse();
+        let inverted_mvp_ref: &[f32; 16] = inverted_mvp_data.as_ref();
+        let inverted_mvp_buffer = wgpu_backend.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: None,
-            contents: bytemuck::cast_slice(view_ref),
+            contents: bytemuck::cast_slice(inverted_mvp_ref),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
 
-        let model_data = Mat4::from_translation(Vec3::new(140.0, 60.0, 0.0));
-        let model_ref: &[f32; 16] = model_data.as_ref();
-        let model_buffer = wgpu_backend.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        let world_data = play.world.tiles;
+        let world_ref = play.world.tiles.as_ref();
+        let world_buffer = wgpu_backend.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: None,
-            contents: bytemuck::cast_slice(model_ref),
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            contents: bytemuck::cast_slice(world_ref),
+            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
         });
 
         let bind_group = wgpu_backend.device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -54,15 +56,15 @@ impl PlayRenderer {
             entries: &[
                 wgpu::BindGroupEntry {
                     binding: 0,
-                    resource: projection_buffer.as_entire_binding(),
+                    resource: mvp_buffer.as_entire_binding(),
                 },
                 wgpu::BindGroupEntry {
                     binding: 1,
-                    resource: view_buffer.as_entire_binding(),
+                    resource: inverted_mvp_buffer.as_entire_binding(),
                 },
                 wgpu::BindGroupEntry {
                     binding: 2,
-                    resource: model_buffer.as_entire_binding(),
+                    resource: world_buffer.as_entire_binding(),
                 },
             ],
         });
@@ -72,25 +74,33 @@ impl PlayRenderer {
         return Self {
             pipeline,
 
-            projection_buffer,
-            view_buffer,
-            model_buffer,
+            mvp_buffer,
+            inverted_mvp_buffer,
+            world_buffer,
 
             bind_group,
-            world
+            world,
         };
     }
 
     pub fn update(&mut self, wgpu_backend: &WGPUBackend, play: &Play) {
-        let view_data = play.camera.get_view_matrix();
-        let view_ref: &[f32; 16] = view_data.as_ref();
-        wgpu_backend.queue.write_buffer(&self.view_buffer, 0, bytemuck::cast_slice(view_ref));
+        let mvp_data = play.camera.mvp((wgpu_backend.config.width, wgpu_backend.config.height)) * play.model;
+        let mvp_ref: &[f32; 16] = mvp_data.as_ref();
+        wgpu_backend.queue.write_buffer(&self.mvp_buffer, 0, bytemuck::cast_slice(mvp_ref));
+
+        let inverted_mvp_data = (play.camera.mvp((wgpu_backend.config.width, wgpu_backend.config.height)) * play.model).inverse();
+        let inverted_mvp_ref: &[f32; 16] = inverted_mvp_data.as_ref();
+        wgpu_backend.queue.write_buffer(&self.inverted_mvp_buffer, 0, bytemuck::cast_slice(inverted_mvp_ref));
     }
 
     pub fn process_resize(&mut self, wgpu_backend: &WGPUBackend, play: &Play) {
-        let projection_data = play.camera.get_projection_matrix((wgpu_backend.config.width, wgpu_backend.config.height));
-        let projection_ref: &[f32; 16] = projection_data.as_ref();
-        wgpu_backend.queue.write_buffer(&self.projection_buffer, 0, bytemuck::cast_slice(projection_ref));
+        let mvp_data = play.camera.mvp((wgpu_backend.config.width, wgpu_backend.config.height)) * play.model;
+        let mvp_ref: &[f32; 16] = mvp_data.as_ref();
+        wgpu_backend.queue.write_buffer(&self.mvp_buffer, 0, bytemuck::cast_slice(mvp_ref));
+
+        let inverted_mvp_data = (play.camera.mvp((wgpu_backend.config.width, wgpu_backend.config.height)) * play.model).inverse();
+        let inverted_mvp_ref: &[f32; 16] = inverted_mvp_data.as_ref();
+        wgpu_backend.queue.write_buffer(&self.inverted_mvp_buffer, 0, bytemuck::cast_slice(inverted_mvp_ref));
     }
 
 
