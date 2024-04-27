@@ -23,6 +23,12 @@ pub struct ColorVertex {
     pub color: [u8; 4],
 }
 
+#[repr(C)]
+#[derive(Clone, Copy, Pod, Zeroable)]
+pub struct SimpleVertex {
+    pub position: [f32; 2],
+}
+
 pub struct ColorPipeline {
     pub layout: BindGroupLayout,
     pub pipeline: RenderPipeline,
@@ -115,9 +121,9 @@ impl RayMarchingPipeline {
         let bind_group_layout = wgpu_backend.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("BindGroupLayout for RayMarchingPipeline"),
             entries: &[
-                wgpu::BindGroupLayoutEntry { // MVP
+                wgpu::BindGroupLayoutEntry { // Inverted MVP
                     binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Buffer {
                         ty: wgpu::BufferBindingType::Uniform,
                         has_dynamic_offset: false,
@@ -131,12 +137,22 @@ impl RayMarchingPipeline {
                     ty: wgpu::BindingType::Buffer {
                         ty: wgpu::BufferBindingType::Uniform,
                         has_dynamic_offset: false,
-                        min_binding_size: wgpu::BufferSize::new(64),
+                        min_binding_size: wgpu::BufferSize::new(8),
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry { // Inverted MVP
+                    binding: 2,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: wgpu::BufferSize::new(8),
                     },
                     count: None,
                 },
                 wgpu::BindGroupLayoutEntry { // Tiles
-                    binding: 2,
+                    binding: 3,
                     visibility: wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Buffer {
                         ty: wgpu::BufferBindingType::Storage { read_only: true },
@@ -159,7 +175,7 @@ impl RayMarchingPipeline {
             push_constant_ranges: &[],
         });
 
-        let vertex_size = mem::size_of::<ColorVertex>();
+        let vertex_size = mem::size_of::<SimpleVertex>();
 
         let buffer_layout = wgpu::VertexBufferLayout {
             array_stride: vertex_size as wgpu::BufferAddress,
@@ -169,11 +185,6 @@ impl RayMarchingPipeline {
                     format: wgpu::VertexFormat::Float32x2,
                     offset: 0,
                     shader_location: 0,
-                },
-                wgpu::VertexAttribute {
-                    format: wgpu::VertexFormat::Unorm8x4,
-                    offset: 2 * 4,
-                    shader_location: 1,
                 }
             ],
         };

@@ -40,7 +40,7 @@ pub struct Play {
     pub pipeline: PipelineType,
 
     pub world: World,
-    pub model: Mat4,
+    pub mouse_position: Vec2,
 }
 
 impl Play {
@@ -53,7 +53,7 @@ impl Play {
             pipeline: PipelineType::TestRasterizer,
 
             world: World::new(),
-            model: Mat4::from_translation(Vec3::new(140.0, 60.0, 0.0)),
+            mouse_position: Vec2::ZERO,
         };
     }
 
@@ -102,17 +102,7 @@ impl Play {
     pub fn process_mouse_motion(&mut self, delta: (f32, f32)) {}
 
     pub fn process_mouse_position(&mut self, position: (u32, u32)) {
-        let x = 2.0 * position.0 as f32 / 1600.0 - 1.0;
-        let y = 1.0 - (2.0 * position.1 as f32) / 900.0;
-        let z = 1.0f32;
-
-        let ray_nds = Vec3::new(x, y, z);
-        let ray_clip = Vec4::new(ray_nds.x, ray_nds.y, -1.0, 1.0);
-
-        let ray_eye = (self.camera.mvp((1600, 900)) * self.model).inverse() * ray_clip;
-        let tile = IVec2::new(ray_eye.x as i32 / 20, ray_eye.y as i32 / 20);
-
-        println!("{:?}", tile);
+        self.mouse_position = Vec2::new(position.0 as f32, position.1 as f32);
     }
 
     pub fn update(&mut self, delta_time: f32) {

@@ -1,4 +1,4 @@
-use glam::{Mat4, Vec3};
+use glam::{Mat4, Vec2, Vec3, Vec4};
 use wgpu::BindingResource::BufferArray;
 use wgpu::{BufferBinding, BufferSize};
 use wgpu::util::DeviceExt;
@@ -13,8 +13,9 @@ pub mod world;
 pub struct PlayRenderer {
     pipeline: pipeline::RayMarchingPipeline,
 
-    mvp_buffer: wgpu::Buffer,
     inverted_mvp_buffer: wgpu::Buffer,
+    surface_configuration_buffer: wgpu::Buffer,
+    point_light_buffer: wgpu::Buffer,
     world_buffer: wgpu::Buffer,
 
     bind_group: wgpu::BindGroup,
@@ -26,19 +27,27 @@ impl PlayRenderer {
     pub fn new(wgpu_backend: &WGPUBackend, play: &Play) -> Self {
         let pipeline = pipeline::RayMarchingPipeline::new(wgpu_backend);
 
-        let mvp_data = play.camera.mvp((wgpu_backend.config.width, wgpu_backend.config.height)) * play.model;
-        let mvp_ref: &[f32; 16] = mvp_data.as_ref();
-        let mvp_buffer = wgpu_backend.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: None,
-            contents: bytemuck::cast_slice(mvp_ref),
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-        });
-
-        let inverted_mvp_data = (play.camera.mvp((wgpu_backend.config.width, wgpu_backend.config.height)) * play.model).inverse();
+        let inverted_mvp_data = (play.camera.mvp((wgpu_backend.config.width, wgpu_backend.config.height))).inverse();
         let inverted_mvp_ref: &[f32; 16] = inverted_mvp_data.as_ref();
         let inverted_mvp_buffer = wgpu_backend.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: None,
             contents: bytemuck::cast_slice(inverted_mvp_ref),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        });
+
+        let surface_configuration_data = [wgpu_backend.config.width as f32, wgpu_backend.config.height as f32];
+        let surface_configuration_ref = surface_configuration_data.as_ref();
+        let surface_configuration_buffer = wgpu_backend.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: None,
+            contents: bytemuck::cast_slice(surface_configuration_ref),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        });
+
+        let point_light_data = play.mouse_position;
+        let point_light_ref = point_light_data.as_ref();
+        let point_light_buffer = wgpu_backend.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: None,
+            contents: bytemuck::cast_slice(point_light_ref),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
 
@@ -56,14 +65,18 @@ impl PlayRenderer {
             entries: &[
                 wgpu::BindGroupEntry {
                     binding: 0,
-                    resource: mvp_buffer.as_entire_binding(),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
                     resource: inverted_mvp_buffer.as_entire_binding(),
                 },
                 wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: surface_configuration_buffer.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
                     binding: 2,
+                    resource: point_light_buffer.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 3,
                     resource: world_buffer.as_entire_binding(),
                 },
             ],
@@ -74,8 +87,9 @@ impl PlayRenderer {
         return Self {
             pipeline,
 
-            mvp_buffer,
             inverted_mvp_buffer,
+            surface_configuration_buffer,
+            point_light_buffer,
             world_buffer,
 
             bind_group,
@@ -84,23 +98,28 @@ impl PlayRenderer {
     }
 
     pub fn update(&mut self, wgpu_backend: &WGPUBackend, play: &Play) {
-        let mvp_data = play.camera.mvp((wgpu_backend.config.width, wgpu_backend.config.height)) * play.model;
-        let mvp_ref: &[f32; 16] = mvp_data.as_ref();
-        wgpu_backend.queue.write_buffer(&self.mvp_buffer, 0, bytemuck::cast_slice(mvp_ref));
+        let x = 2.0 * play.mouse_position.x / wgpu_backend.config.width as f32 - 1.0;
+        let y = 1.0 - (2.0 * play.mouse_position.y) / wgpu_backend.config.height as f32;
+        let z = 1.0f32;
 
-        let inverted_mvp_data = (play.camera.mvp((wgpu_backend.config.width, wgpu_backend.config.height)) * play.model).inverse();
-        let inverted_mvp_ref: &[f32; 16] = inverted_mvp_data.as_ref();
-        wgpu_backend.queue.write_buffer(&self.inverted_mvp_buffer, 0, bytemuck::cast_slice(inverted_mvp_ref));
+        let ray_nds = Vec3::new(x, y, z);
+        let ray_clip = Vec4::new(ray_nds.x, ray_nds.y, -1.0, 1.0);
+
+        let ray_eye = (play.camera.mvp((wgpu_backend.config.width, wgpu_backend.config.height))).inverse() * ray_clip;
+
+        let point_light_data = Vec2::new(ray_eye.x, ray_eye.y);
+        let point_light_ref = point_light_data.as_ref();
+        wgpu_backend.queue.write_buffer(&self.point_light_buffer, 0, bytemuck::cast_slice(point_light_ref));
     }
 
     pub fn process_resize(&mut self, wgpu_backend: &WGPUBackend, play: &Play) {
-        let mvp_data = play.camera.mvp((wgpu_backend.config.width, wgpu_backend.config.height)) * play.model;
-        let mvp_ref: &[f32; 16] = mvp_data.as_ref();
-        wgpu_backend.queue.write_buffer(&self.mvp_buffer, 0, bytemuck::cast_slice(mvp_ref));
-
-        let inverted_mvp_data = (play.camera.mvp((wgpu_backend.config.width, wgpu_backend.config.height)) * play.model).inverse();
+        let inverted_mvp_data = (play.camera.mvp((wgpu_backend.config.width, wgpu_backend.config.height))).inverse();
         let inverted_mvp_ref: &[f32; 16] = inverted_mvp_data.as_ref();
         wgpu_backend.queue.write_buffer(&self.inverted_mvp_buffer, 0, bytemuck::cast_slice(inverted_mvp_ref));
+
+        let surface_configuration_data = [wgpu_backend.config.width as f32, wgpu_backend.config.height as f32];
+        let surface_configuration_ref = surface_configuration_data.as_ref();
+        wgpu_backend.queue.write_buffer(&self.surface_configuration_buffer, 0, bytemuck::cast_slice(surface_configuration_ref));
     }
 
 

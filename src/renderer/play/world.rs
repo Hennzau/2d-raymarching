@@ -1,6 +1,6 @@
 use wgpu::util::DeviceExt;
 use crate::logic::play::world::World;
-use crate::renderer::pipeline::ColorVertex;
+use crate::renderer::pipeline::{ColorVertex, SimpleVertex};
 
 use crate::WGPUBackend;
 
@@ -15,30 +15,13 @@ impl WorldRenderer {
         let mut vertices = Vec::<ColorVertex>::new();
         let mut indices = Vec::<u16>::new();
 
-        for x in 0..50 {
-            for y in 0..30 {
-                let offset = vertices.len();
+        let mut vertices = Vec::<SimpleVertex>::new();
+        vertices.push(SimpleVertex { position: [-1.0, 1.0] });
+        vertices.push(SimpleVertex { position: [-1.0, -1.0] });
+        vertices.push(SimpleVertex { position: [1.0, -1.0] });
+        vertices.push(SimpleVertex { position: [1.0, 1.0] });
 
-                if world.tiles[x * 30 + y] == 1 {
-                    vertices.push(ColorVertex { position: [x as f32 * 20.0, y as f32 * 20.0], color: [255, 0, 0, 255] });
-                    vertices.push(ColorVertex { position: [x as f32 * 20.0 + 20.0, y as f32 * 20.0], color: [255, 0, 0, 255] });
-                    vertices.push(ColorVertex { position: [x as f32 * 20.0, y as f32 * 20.0 + 20.0], color: [255, 0, 0, 255] });
-                    vertices.push(ColorVertex { position: [x as f32 * 20.0 + 20.0, y as f32 * 20.0 + 20.0], color: [255, 0, 0, 255] });
-                } else {
-                    vertices.push(ColorVertex { position: [x as f32 * 20.0, y as f32 * 20.0], color: [255, 255, 0, 255] });
-                    vertices.push(ColorVertex { position: [x as f32 * 20.0 + 20.0, y as f32 * 20.0], color: [255, 255, 0, 255] });
-                    vertices.push(ColorVertex { position: [x as f32 * 20.0, y as f32 * 20.0 + 20.0], color: [255, 255, 0, 255] });
-                    vertices.push(ColorVertex { position: [x as f32 * 20.0 + 20.0, y as f32 * 20.0 + 20.0], color: [255, 255, 0, 255] });
-                }
-
-                indices.push(offset as u16 + 0);
-                indices.push(offset as u16 + 1);
-                indices.push(offset as u16 + 2);
-                indices.push(offset as u16 + 2);
-                indices.push(offset as u16 + 1);
-                indices.push(offset as u16 + 3);
-            }
-        }
+        let indices: [u16; 6] = [0, 1, 2, 2, 3, 0];
 
         let vertex_buffer = wgpu_backend.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: None,

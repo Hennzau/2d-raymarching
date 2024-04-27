@@ -1,3 +1,5 @@
+use glam::Vec2;
+
 pub struct World {
     pub tiles: [u32; 30 * 50],
 }
@@ -23,7 +25,7 @@ impl World {
         tiles[28 * 30 + 4] = 1;
 
         return Self {
-            tiles
+            tiles,
         };
     }
 }
