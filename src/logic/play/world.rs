@@ -20,6 +20,8 @@ impl World {
             }
         }
 
+        tiles[28 * 30 + 4] = 1;
+
         return Self {
             tiles
         };

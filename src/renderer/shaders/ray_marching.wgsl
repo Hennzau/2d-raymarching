@@ -56,29 +56,30 @@ fn fs_main(
 
     let tile_origin = vec2<u32> (u32(ray_origin.x / 20), u32(ray_origin.y / 20));
 
-    var t = 0.0;
+    var t = 0.3;
 
-    for (var i: i32 = 0; i < 500; i = i + 1) {
-        let ray_target = ray_origin + ray_direction * f32(i);
-        let tile = vec2<u32> (u32(ray_target.x / 20), u32(ray_target.y / 20));
+    if world[tile_origin.x * 30 + tile_origin.y] == 0 {
+        for (var i: i32 = 0; i < 500; i = i + 1) {
+            let ray_target = ray_origin + ray_direction * f32(i);
+            let tile = vec2<u32> (u32(ray_target.x / 20), u32(ray_target.y / 20));
 
-        // process world with tile
+            // process world with tile
 
-        if length (ray_target - ray_origin) > length(point_light - ray_origin) {
-            t = 1.0;
-            break;
-        }
 
-        if world[tile.x * 30 + tile.y] == 1 {
-            if tile.x != tile_origin.x && tile.y != tile_origin.y {
-                t = 0.0;
+            if length (ray_target - ray_origin) >= length(point_light - ray_origin) {
+                t = 1.0;
                 break;
-
             }
-        }
 
+            if world[tile.x * 30 + tile.y] == 1 {
+                t = 0.3;
+                break;
+            }
+
+            t = 1.0;
+        }
+    } else {
         t = 1.0;
-        // increase parameters if the ray continue
     }
 
     result.out_frag_color = in_vertex_color * t;
