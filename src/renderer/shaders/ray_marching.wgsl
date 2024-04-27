@@ -84,9 +84,8 @@ fn fs_main(
                 result.out_frag_color = vec4<f32> (0.1, 0.1, 0.0, 1.0);
             } else {
                 // Point light knowing distance
-                var t = 0.3;
 
-                t = -(1.0 - 0.3) / 500.0 * distance + 1.0;
+                let t = -(1.0 - 0.1) / 700.0 * distance + 1.0;
 
                 result.out_frag_color = vec4<f32> (1.0, 1.0, 0.0, 1.0) * t;
             }

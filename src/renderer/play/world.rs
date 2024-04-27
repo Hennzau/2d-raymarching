@@ -1,6 +1,9 @@
 use wgpu::util::DeviceExt;
-use crate::logic::play::world::World;
-use crate::renderer::pipeline::{ColorVertex, SimpleVertex};
+
+use crate::{
+    logic::play::world::World,
+    renderer::pipeline::SimpleVertex
+};
 
 use crate::WGPUBackend;
 
@@ -11,10 +14,7 @@ pub struct WorldRenderer {
 }
 
 impl WorldRenderer {
-    pub fn new(wgpu_backend: &WGPUBackend, world: &World) -> Self {
-        let mut vertices = Vec::<ColorVertex>::new();
-        let mut indices = Vec::<u16>::new();
-
+    pub fn new(wgpu_backend: &WGPUBackend, _world: &World) -> Self {
         let mut vertices = Vec::<SimpleVertex>::new();
         vertices.push(SimpleVertex { position: [-1.0, 1.0] });
         vertices.push(SimpleVertex { position: [-1.0, -1.0] });

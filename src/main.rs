@@ -1,18 +1,9 @@
-use std::{
-    thread::sleep,
-    time::Duration,
-};
-
 use winit::{
     event::{
         Event,
         WindowEvent,
     },
     event_loop::EventLoop,
-    platform::pump_events::{
-        EventLoopExtPumpEvents,
-        PumpStatus,
-    },
     window::{
         Window,
         WindowBuilder,
@@ -32,7 +23,6 @@ use wgpu::{
     SurfaceConfiguration,
     TextureFormat,
 };
-use winit::event::DeviceEvent;
 
 use crate::logic::Logic;
 use crate::renderer::Renderer;
@@ -95,7 +85,7 @@ pub mod logic;
 pub mod renderer;
 
 fn main() {
-    let mut event_loop = EventLoop::new().unwrap();
+    let event_loop = EventLoop::new().unwrap();
     let builder = WindowBuilder::new();
     let window = builder.with_title("Vox").with_inner_size(LogicalSize::new(1280, 720)).build(&event_loop).unwrap();
 
@@ -114,65 +104,41 @@ fn main() {
     let mut logic = Logic::new();
     let mut renderer = Renderer::new(&backend, &logic);
 
-    'main: loop {
-        let timeout = Some(Duration::ZERO);
-        let status = event_loop.pump_events(timeout, |event, target| {
-            match event {
-                Event::WindowEvent {
-                    event,
-                    ..
-                } => {
-                    match event {
-                        WindowEvent::Resized(new_size) => {
-                            backend.config.width = new_size.width.max(1);
-                            backend.config.height = new_size.height.max(1);
+    let window = &window;
+    event_loop.run(move |event, target| {
+        let _ = (&backend.instance, &backend.adapter);
 
-                            backend.surface.configure(&backend.device, &backend.config);
-                            renderer.process_resize(&backend, &logic);
-                        }
-                        WindowEvent::CloseRequested => target.exit(),
-                        WindowEvent::KeyboardInput {
-                            event,
-                            ..
-                        } => logic.process_keyboard(&window, event),
-                        WindowEvent::MouseInput {
-                            state,
-                            button,
-                            ..
-                        } => logic.process_mouse_input(&window, state, button),
-                        WindowEvent::CursorMoved {
-                            position,
-                            ..
-                        } => {
-                            logic.process_mouse_position((position.x as u32, position.y as u32));
-                        }
-                        _ => {}
+        match event {
+            Event::AboutToWait => {
+                window.request_redraw();
+            },
+            Event::WindowEvent {
+                event,
+                ..
+            } => {
+                match event {
+                    WindowEvent::Resized(new_size) => {
+                        backend.config.width = new_size.width.max(1);
+                        backend.config.height = new_size.height.max(1);
+
+                        backend.surface.configure(&backend.device, &backend.config);
+                        renderer.process_resize(&backend, &logic);
                     }
-                }
-                Event::DeviceEvent {
-                    event,
-                    ..
-                } => {
-                    match event {
-                        DeviceEvent::MouseMotion {
-                            delta: (dx, dy)
-                        } => logic.process_mouse_motion((dx as f32, dy as f32)),
-                        _ => {}
+                    WindowEvent::CloseRequested => target.exit(),
+                    WindowEvent::RedrawRequested => {
+                        renderer.update(&backend, &logic);
+                        renderer.render(&backend, &logic);
                     }
+                    WindowEvent::CursorMoved {
+                        position,
+                        ..
+                    } => {
+                        logic.process_mouse_position((position.x as u32, position.y as u32));
+                    }
+                    _ => {}
                 }
-                _ => {}
             }
-        });
-
-        if let PumpStatus::Exit(_) = status {
-            break 'main;
+            _ => {}
         }
-
-        renderer.render(&backend, &logic);
-
-        logic.update(1.0 / 60.0);
-        renderer.update(&backend, &logic);
-
-        sleep(Duration::from_millis(16)); // At the moment we just put everything at 60 ticks/per_second
-    }
+    }).expect("TODO: panic message");
 }

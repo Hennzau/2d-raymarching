@@ -1,5 +1,3 @@
-use glam::Vec2;
-
 pub struct World {
     pub tiles: [u32; 30 * 50],
 }

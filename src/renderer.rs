@@ -3,17 +3,11 @@ use wgpu::{
     Operations,
     RenderPassColorAttachment,
     RenderPassDescriptor,
-    util::DeviceExt
 };
 
 use crate::{
     logic::Logic,
     WGPUBackend
-};
-
-use crate::logic::{
-    LogicState,
-    play::PipelineType
 };
 
 use crate::renderer::play::PlayRenderer;
@@ -69,12 +63,7 @@ impl Renderer {
                 occlusion_query_set: None,
             });
 
-            match logic.state {
-                LogicState::Playing => {
-                    self.play.render(&mut pass, &logic.play);
-                },
-                LogicState::Menu => {},
-            }
+            self.play.render(&mut pass, &logic.play);
         }
 
         wgpu_backend.queue.submit(Some(encoder.finish()));

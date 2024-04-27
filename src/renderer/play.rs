@@ -1,10 +1,15 @@
-use glam::{Mat4, Vec2, Vec3, Vec4};
-use wgpu::BindingResource::BufferArray;
-use wgpu::{BufferBinding, BufferSize};
+use glam::{
+    Vec2,
+    Vec3,
+    Vec4
+};
+
 use wgpu::util::DeviceExt;
-use crate::logic::play::Play;
-use crate::renderer::pipeline;
-use crate::renderer::pipeline::ColorVertex;
+
+use crate::{
+    logic::play::Play,
+    renderer::pipeline
+};
 
 use crate::WGPUBackend;
 
@@ -16,7 +21,6 @@ pub struct PlayRenderer {
     inverted_mvp_buffer: wgpu::Buffer,
     surface_configuration_buffer: wgpu::Buffer,
     point_light_buffer: wgpu::Buffer,
-    world_buffer: wgpu::Buffer,
 
     bind_group: wgpu::BindGroup,
 
@@ -51,7 +55,6 @@ impl PlayRenderer {
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
 
-        let world_data = play.world.tiles;
         let world_ref = play.world.tiles.as_ref();
         let world_buffer = wgpu_backend.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: None,
@@ -90,7 +93,6 @@ impl PlayRenderer {
             inverted_mvp_buffer,
             surface_configuration_buffer,
             point_light_buffer,
-            world_buffer,
 
             bind_group,
             world,
@@ -123,7 +125,7 @@ impl PlayRenderer {
     }
 
 
-    pub fn render<'a>(&'a self, pass: &mut wgpu::RenderPass<'a>, play: &Play) {
+    pub fn render<'a>(&'a self, pass: &mut wgpu::RenderPass<'a>, _play: &Play) {
         pass.set_pipeline(&self.pipeline.pipeline);
         pass.set_bind_group(0, &self.bind_group, &[]);
 
