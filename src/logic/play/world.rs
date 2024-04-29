@@ -17,7 +17,13 @@ impl World {
                 } else {
                     tiles[x * 30 + y] = 0;
                 }
+
+                tiles[0 * 30 + y] = 1;
+                tiles[49 * 30 + y] = 1;
             }
+
+            tiles[x * 30 + 0] = 1;
+            tiles[x * 30 + 29] = 1;
         }
 
         tiles[28 * 30 + 4] = 1;
