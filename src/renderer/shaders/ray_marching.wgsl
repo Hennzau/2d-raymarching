@@ -35,6 +35,8 @@ var<uniform> point_light: vec2<f32>;
 @binding(3)
 var<storage, read> world: array<u32, 1500>;
 
+
+
 @fragment
 fn fs_main(
 
@@ -50,6 +52,7 @@ fn fs_main(
     let ray_clip = vec4<f32> (ray_nds.x, ray_nds.y, -1.0, 1.0);
 
     let ray_origin = (inverted_mvp * ray_clip).xy;
+    let ray_direction = normalize (point_light - ray_origin);
     let light_distance = length (ray_origin - point_light);
 
     let tile_origin = vec2<i32> (i32(ray_origin.x / 20), i32(ray_origin.y / 20));
@@ -60,66 +63,48 @@ fn fs_main(
 
             var final_luminosity = 0.0;
 
-            for (var i: i32 = 0; i < 30; i = i + 1) {
-                let ray_direction = vec2<f32> (cos(2.0 * 3.141502 * f32(i) / 30.0f), sin(2.0 * 3.141502 * f32(i) / 30.0f));
+            var march = 0.0;
+            var ray_target = ray_origin;
+            for (var i: i32 = 0; i < 50; i = i + 1) {
+                ray_target = ray_target + ray_direction * (march + 1);
 
-                var distance = 0.0;
-                var obstacle = false;
-                var ray_target = ray_origin + ray_direction;
+                if length (ray_target - ray_origin) >= length(point_light - ray_origin) {
+                    final_luminosity = 1.0;
+                    break;
+                }
 
-                for (var j: i32 = 0; j < 50; j = j + 1) {
-                    ray_target = ray_origin + ray_direction * f32(j) * 20;
+                let ray_tile = vec2<i32> (i32(ray_target.x / 20), i32(ray_target.y / 20));
 
-                    let tile_target = vec2<i32> (i32(ray_target.x / 20), i32(ray_target.y / 20));
-                    if tile_target.x >= 0 && tile_target.x < 50 && tile_target.y >= 0 && tile_target.y < 30 {
-                        distance = length (ray_target - ray_origin);
+                if world[ray_tile.x * 30 + ray_tile.y] == 1 {
+                    final_luminosity = 0.0;
+                    break;
+                }
 
-                        if world[tile_target.x * 30 + tile_target.y] == 1 {
-                            ray_target = ray_origin + ray_direction * f32(j - 1) * 10;
-                            obstacle = true;
+                var k = array<f32, 4> (0.0, 0.0, 0.0, 0.0);
 
-                            break;
-                        }
-                    } else {
-                        break;
+                let d = 20.0;
+
+                if (ray_direction.x == 0.0 && ray_direction.y != 0) {
+                    k[1] = (f32(ray_tile.y) * d + d - ray_target.y) / ray_direction.y;
+                    k[3] = (f32(ray_tile.y) * d - ray_target.y) / ray_direction.y;
+                } else if (ray_direction.x != 0.0 && ray_direction.y == 0) {
+                    k[0] = (f32(ray_tile.x) * d - ray_target.x) / ray_direction.x;
+                    k[2] = (f32(ray_tile.x) * d + d - ray_target.x) / ray_direction.x;
+                } else {
+                    k[0] = (f32(ray_tile.x) * d - ray_target.x) / ray_direction.x;
+                    k[2] = (f32(ray_tile.x) * d + d - ray_target.x) / ray_direction.x;
+                    k[1] = (f32(ray_tile.y) * d + d - ray_target.y) / ray_direction.y;
+                    k[3] = (f32(ray_tile.y) * d - ray_target.y) / ray_direction.y;
+                }
+
+                var k_d = 0.0;
+                for (var j: i32 = 0; j < 4; j = j + 1) {
+                    if k[j] > 0.0 && (k_d == 0.0 || k_d > k[j]) {
+                        k_d = k[j];
                     }
                 }
 
-                if obstacle {
-                    let ray_origin_2 = ray_target;
-                    let ray_direction = normalize (point_light - ray_origin_2);
-
-                    var distance_2 = 0.0;
-
-                    for (var j: i32 = 0; j < 50; j = j + 1) {
-                        ray_target = ray_origin_2 + ray_direction * f32(j) * 20;
-
-                        let tile_target = vec2<i32> (i32(ray_target.x / 20), i32(ray_target.y / 20));
-                        if tile_target.x >= 0 && tile_target.x < 50 && tile_target.y >= 0 && tile_target.y < 30 {
-                            distance_2 = length(point_light - ray_origin);
-
-                            if length (ray_target - ray_origin_2) >= length(point_light - ray_origin_2) {
-                                obstacle = false;
-                                break;
-                            }
-
-                            if world[tile_target.x * 30 + tile_target.y] == 1 {
-                                obstacle = true;
-
-                                break;
-                            }
-                        } else {
-                            break;
-                        }
-                    }
-
-                    if obstacle == false {
-                        let t_1 = -1.0 / 700.0 * distance + 1.0;
-                        let t_2 = -1.0 / 700.0 * distance_2 + 1.0;
-
-                        final_luminosity += (t_1 * t_2) / 50.0f;
-                    }
-                }
+                march = k_d;
             }
 
             result.out_frag_color = vec4<f32> (1.0, 1.0, 0.0, 1.0) * final_luminosity;
